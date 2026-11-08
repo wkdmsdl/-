@@ -126,10 +126,28 @@ function splitFacility(text) {
 // 알레르기 분석
 // ========================================
 
+// OCR 오타 허용: 세 글자 이상 단어는 한 글자까지 틀려도 같은 단어로 본다.
+// 예) OCR이 "토마토"를 "토마도"로 읽어도 토마토로 인식
+// (알레르기는 놓치는 것보다 한 번 더 경고하는 쪽이 안전하므로)
+function fuzzyIncludes(text, keyword) {
+  if (text.includes(keyword)) return true;
+  if (keyword.length < 3) return false;
+
+  for (let i = 0; i + keyword.length <= text.length; i++) {
+    let diff = 0;
+    for (let j = 0; j < keyword.length && diff <= 1; j++) {
+      if (text[i + j] !== keyword[j]) diff++;
+    }
+    // 첫 글자는 맞아야 인정 (엉뚱한 단어가 걸리는 것 방지)
+    if (diff <= 1 && text[i] === keyword[0]) return true;
+  }
+  return false;
+}
+
 function hasIngredient(text, allergy) {
   const normalized = normalize(text);
   return (ALIAS[allergy] || [allergy]).some(keyword =>
-    normalized.includes(normalize(keyword))
+    fuzzyIncludes(normalized, normalize(keyword))
   );
 }
 
@@ -184,4 +202,4 @@ if (require.main === module) {
   }
 }
 
-module.exports = { analyze, analyzeText, splitFacility };
+module.exports = { analyze, analyzeText, splitFacility, ALIAS };

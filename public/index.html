@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F3A2E">
+<title>알레르기 체크</title>
+<style>
+  :root {
+    --bg: #F4F2EC;
+    --card: #FFFFFF;
+    --ink: #1C2520;
+    --sub: #66706A;
+    --line: #E3DFD5;
+    --brand: #1F3A2E;
+    --danger: #C8341C;
+    --danger-bg: #FCEBE7;
+    --caution: #B9770E;
+    --caution-bg: #FDF3DD;
+    --safe: #2E7D4F;
+    --safe-bg: #E6F4EA;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 0 18px; }
+
+  header {
+    background: var(--brand);
+    color: #fff;
+    padding: 22px 0 20px;
+  }
+  header .store { font-size: 13px; opacity: .7; letter-spacing: .02em; }
+  header h1 { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .chip {
+    font-size: 13px; padding: 5px 11px; border-radius: 999px;
+    background: rgba(255,255,255,.14); color: #fff;
+  }
+  .chip.empty { background: transparent; border: 1px dashed rgba(255,255,255,.5); }
+
+  section.screen { display: none; padding-top: 20px; }
+  section.screen.active { display: block; }
+  h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .desc { font-size: 14px; color: var(--sub); margin-bottom: 16px; line-height: 1.5; }
+
+  /* 메뉴판 */
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--sub); margin-bottom: 12px; }
+  .legend span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; }
+  .legend .l-safe::before { background: var(--safe); }
+  .legend .l-caution::before { background: var(--caution); }
+  .legend .l-danger::before { background: var(--danger); }
+
+  .menu {
+    background: var(--card); border-radius: var(--radius);
+    padding: 16px; margin-bottom: 10px;
+    border: 1px solid var(--line);
+    border-left: 5px solid var(--line);
+  }
+  .menu.danger { border-left-color: var(--danger); }
+  .menu.caution { border-left-color: var(--caution); }
+  .menu.none { border-left-color: var(--safe); }
+  .menu-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .menu-name { font-size: 17px; font-weight: 700; }
+  .menu-product { font-size: 13px; color: var(--sub); margin-top: 2px; }
+  .badge {
+    flex-shrink: 0; font-size: 12px; font-weight: 700;
+    padding: 5px 10px; border-radius: 999px;
+  }
+  .badge.danger { background: var(--danger-bg); color: var(--danger); }
+  .badge.caution { background: var(--caution-bg); color: var(--caution); }
+  .badge.none { background: var(--safe-bg); color: var(--safe); }
+  .menu-reason { font-size: 13px; margin-top: 10px; line-height: 1.5; color: var(--ink); }
+  .menu details { margin-top: 8px; font-size: 12px; color: var(--sub); }
+  .menu summary { cursor: pointer; }
+  .menu details p { margin-top: 6px; line-height: 1.5; }
+  .reco-title { font-size: 14px; font-weight: 700; margin: 18px 0 8px; color: var(--sub); }
+
+  /* 촬영 */
+  .upload {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    background: var(--card); border: 2px dashed var(--line); border-radius: var(--radius);
+    padding: 34px 16px; text-align: center; cursor: pointer;
+  }
+  .upload .icon { font-size: 36px; }
+  .upload strong { font-size: 16px; }
+  .upload small { font-size: 13px; color: var(--sub); }
+  .upload input { display: none; }
+  #preview { width: 100%; border-radius: var(--radius); margin-top: 12px; display: none; border: 1px solid var(--line); }
+
+  .btn {
+    display: block; width: 100%; border: 0; border-radius: 12px;
+    padding: 15px; font-size: 16px; font-weight: 700; font-family: inherit;
+    background: var(--brand); color: #fff; margin-top: 12px; cursor: pointer;
+  }
+  .btn:disabled { opacity: .45; }
+  .btn.ghost { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+
+  .loading { display: none; text-align: center; padding: 24px 0 8px; color: var(--sub); font-size: 14px; }
+  .spinner {
+    width: 32px; height: 32px; border-radius: 50%; margin: 0 auto 10px;
+    border: 3px solid var(--line); border-top-color: var(--brand);
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .result { display: none; margin-top: 16px; }
+  .verdict { border-radius: var(--radius); padding: 20px; }
+  .verdict.danger { background: var(--danger-bg); color: var(--danger); }
+  .verdict.caution { background: var(--caution-bg); color: var(--caution); }
+  .verdict.none { background: var(--safe-bg); color: var(--safe); }
+  .verdict .big { font-size: 24px; font-weight: 800; }
+  .verdict .text { font-size: 14px; margin-top: 6px; line-height: 1.5; color: var(--ink); }
+  .rows { background: var(--card); border-radius: var(--radius); margin-top: 10px; border: 1px solid var(--line); }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .row:last-child { border-bottom: 0; }
+  .ocr { margin-top: 10px; font-size: 13px; color: var(--sub); }
+  .ocr pre { white-space: pre-wrap; word-break: break-all; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 8px; font-family: inherit; line-height: 1.5; max-height: 260px; overflow: auto; }
+  .note { font-size: 12px; color: var(--sub); margin-top: 12px; line-height: 1.5; }
+  .error { display: none; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--danger-bg); color: var(--danger); font-size: 14px; }
+
+  /* 알레르기 설정 */
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .opt {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 14px; font-size: 15px; cursor: pointer; user-select: none;
+  }
+  .opt input { width: 18px; height: 18px; accent-color: var(--brand); }
+  .opt.on { border-color: var(--brand); background: #EEF3EF; font-weight: 700; }
+  .add { display: flex; gap: 8px; margin-top: 12px; }
+  .add input {
+    flex: 1; border: 1.5px solid var(--line); border-radius: 12px; padding: 13px 14px;
+    font-size: 15px; font-family: inherit; background: var(--card);
+  }
+  .add button { border: 0; border-radius: 12px; padding: 0 18px; background: var(--ink); color: #fff; font-size: 15px; font-family: inherit; font-weight: 700; }
+
+  /* 하단 탭 */
+  nav {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--card); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav .wrap { display: flex; padding: 0; }
+  nav button {
+    flex: 1; border: 0; background: none; padding: 10px 0 12px; font-family: inherit;
+    font-size: 12px; color: var(--sub); display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
+  }
+  nav button .i { font-size: 21px; filter: grayscale(1); opacity: .6; }
+  nav button.active { color: var(--brand); font-weight: 700; }
+  nav button.active .i { filter: none; opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="store">QR 주문 · 캡스톤 카페</div>
+    <h1>알레르기 체크</h1>
+    <div class="chips" id="myChips"></div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- 1. 메뉴판 (추천 목록) -->
+  <section class="screen" id="screen-menu">
+    <h2>메뉴판</h2>
+    <p class="desc">내 알레르기 기준으로 메뉴마다 먹어도 되는지 표시해요.</p>
+    <div class="legend"><span class="l-safe">안전</span><span class="l-caution">주의</span><span class="l-danger">위험</span></div>
+    <div id="menuList"></div>
+  </section>
+
+  <!-- 2. 성분표 촬영 → 분석 결과 -->
+  <section class="screen" id="screen-scan">
+    <h2>성분표 촬영</h2>
+    <p class="desc">포장지 뒷면의 원재료·알레르기 표시 부분을 밝은 곳에서 글씨가 잘 보이게 찍어 주세요.</p>
+
+    <label class="upload" id="uploadBox">
+      <span class="icon">📷</span>
+      <strong>사진 찍기 / 앨범에서 고르기</strong>
+      <small>JPG, PNG · 최대 15MB</small>
+      <input type="file" id="photo" accept="image/*" capture="environment">
+    </label>
+    <img id="preview" alt="선택한 성분표 사진">
+
+    <button class="btn" id="analyzeBtn" disabled>분석하기</button>
+
+    <div class="loading" id="loading"><div class="spinner"></div>글자를 읽고 있어요… (10~30초)</div>
+    <div class="error" id="error"></div>
+
+    <div class="result" id="result">
+      <div class="verdict" id="verdict"><div class="big"></div><div class="text"></div></div>
+      <div class="rows" id="rows"></div>
+      <details class="ocr"><summary>OCR이 읽은 글자 보기</summary><pre id="ocrText"></pre></details>
+      <p class="note">사진 인식 결과는 실제 표시와 다를 수 있어요. 최종 확인은 포장지 표시를 직접 확인해 주세요. 올린 사진은 분석 후 바로 삭제되며 저장되지 않아요.</p>
+      <button class="btn ghost" id="againBtn">다른 사진 분석하기</button>
+    </div>
+  </section>
+
+  <!-- 3. 알레르기 설정 -->
+  <section class="screen" id="screen-setting">
+    <h2>내 알레르기</h2>
+    <p class="desc">해당하는 성분을 모두 골라 주세요. 이 휴대폰에만 저장돼요.</p>
+    <div class="options" id="options"></div>
+    <div class="add">
+      <input id="customInput" placeholder="직접 입력 (예: 땅콩)" maxlength="15">
+      <button id="addBtn">추가</button>
+    </div>
+    <button class="btn" id="saveBtn">저장하고 메뉴 보기</button>
+  </section>
+
+</main>
+
+<nav>
+  <div class="wrap">
+    <button data-go="menu"><span class="i">📋</span>메뉴판</button>
+    <button data-go="scan"><span class="i">📷</span>성분표 촬영</button>
+    <button data-go="setting"><span class="i">⚙️</span>내 알레르기</button>
+  </div>
+</nav>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const STATUS = {
+    danger:  { label: "위험", big: "🔴 먹으면 안 돼요" },
+    caution: { label: "주의", big: "🟡 주의가 필요해요" },
+    none:    { label: "안전", big: "🟢 확인된 알레르기 성분 없음" }
+  };
+
+  // ---------- 내 알레르기 (휴대폰에 저장) ----------
+  const STORE_KEY = "myAllergies";
+  let myAllergies = [];
+  let choices = [];
+
+  function loadMine() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) { return null; }
+  }
+  function saveMine() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(myAllergies)); } catch (e) {}
+  }
+
+  function renderChips() {
+    $("myChips").innerHTML = myAllergies.length
+      ? myAllergies.map(a => `<span class="chip">${esc(a)}</span>`).join("")
+      : `<span class="chip empty">알레르기를 설정해 주세요</span>`;
+  }
+
+  function renderOptions() {
+    const all = [...new Set([...choices, ...myAllergies])];
+    $("options").innerHTML = all.map(a => `
+      <label class="opt ${myAllergies.includes(a) ? "on" : ""}">
+        <input type="checkbox" value="${esc(a)}" ${myAllergies.includes(a) ? "checked" : ""}> ${esc(a)}
+      </label>`).join("");
+    $("options").querySelectorAll("input").forEach(box => {
+      box.addEventListener("change", () => {
+        const v = box.value;
+        myAllergies = box.checked ? [...myAllergies, v] : myAllergies.filter(a => a !== v);
+        box.parentElement.classList.toggle("on", box.checked);
+      });
+    });
+  }
+
+  $("addBtn").addEventListener("click", () => {
+    const v = $("customInput").value.trim();
+    if (!v) return;
+    if (!myAllergies.includes(v)) myAllergies.push(v);
+    $("customInput").value = "";
+    renderOptions();
+  });
+  $("customInput").addEventListener("keydown", e => { if (e.key === "Enter") $("addBtn").click(); });
+
+  $("saveBtn").addEventListener("click", () => {
+    if (!myAllergies.length) { alertBox("알레르기를 하나 이상 골라 주세요."); return; }
+    saveMine(); renderChips(); go("menu");
+  });
+
+  function alertBox(msg) {
+    // 브라우저 alert 대신 버튼 문구로 안내
+    const b = $("saveBtn"); const old = b.textContent;
+    b.textContent = msg; setTimeout(() => (b.textContent = old), 1800);
+  }
+
+  // ---------- 메뉴판 ----------
+  async function loadMenus() {
+    const q = encodeURIComponent(myAllergies.join(","));
+    const res = await fetch(`/api/menus?allergies=${q}`);
+    const { menus } = await res.json();
+
+    const order = { none: 0, caution: 1, danger: 2 };
+    menus.sort((a, b) => order[a.status] - order[b.status]);
+
+    const safe = menus.filter(m => m.status === "none");
+    const others = menus.filter(m => m.status !== "none");
+
+    $("menuList").innerHTML =
+      (safe.length ? `<div class="reco-title">👍 추천 메뉴 (${safe.length})</div>` + safe.map(menuCard).join("") : "") +
+      (others.length ? `<div class="reco-title">확인이 필요한 메뉴 (${others.length})</div>` + others.map(menuCard).join("") : "");
+  }
+
+  function menuCard(m) {
+    let reason = "등록된 알레르기 성분이 없어요.";
+    if (m.directMatches.length) reason = `원재료에 <b>${m.directMatches.map(esc).join(", ")}</b> 포함`;
+    if (m.facilityMatches.length) reason += (m.directMatches.length ? " · " : "") + `<b>${m.facilityMatches.map(esc).join(", ")}</b> 같은 시설에서 제조`;
+    if (!m.directMatches.length && m.facilityMatches.length) reason = `<b>${m.facilityMatches.map(esc).join(", ")}</b> 사용 제품과 같은 시설에서 제조`;
+
+    return `
+      <div class="menu ${m.status}">
+        <div class="menu-top">
+          <div><div class="menu-name">${esc(m.name)}</div><div class="menu-product">${esc(m.product)}</div></div>
+          <span class="badge ${m.status}">${STATUS[m.status].label}</span>
+        </div>
+        <div class="menu-reason">${reason}</div>
+        <details><summary>원재료 보기</summary>
+          <p>${esc(m.ingredientsText)}</p>
+          <p>※ ${esc(m.facilityText)}</p>
+        </details>
+      </div>`;
+  }
+
+  // ---------- 성분표 촬영 ----------
+  let file = null;
+
+  $("photo").addEventListener("change", e => {
+    file = e.target.files[0] || null;
+    if (!file) return;
+    $("preview").src = URL.createObjectURL(file);
+    $("preview").style.display = "block";
+    $("analyzeBtn").disabled = false;
+    $("result").style.display = "none";
+    $("error").style.display = "none";
+  });
+
+  $("analyzeBtn").addEventListener("click", async () => {
+    if (!file) return;
+    if (!myAllergies.length) { go("setting"); return; }
+
+    $("analyzeBtn").disabled = true;
+    $("loading").style.display = "block";
+    $("error").style.display = "none";
+    $("result").style.display = "none";
+
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      form.append("allergies", myAllergies.join(","));
+
+      const res = await fetch("/api/analyze", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "분석에 실패했어요.");
+      showResult(data);
+    } catch (err) {
+      $("error").textContent = err.message;
+      $("error").style.display = "block";
+    } finally {
+      $("loading").style.display = "none";
+      $("analyzeBtn").disabled = false;
+    }
+  });
+
+  function showResult(r) {
+    const v = $("verdict");
+    v.className = "verdict " + r.status;
+    v.querySelector(".big").textContent = STATUS[r.status].big;
+    v.querySelector(".text").textContent = r.statusText;
+
+    $("rows").innerHTML = r.allergies.map(a => {
+      const s = r.directMatches.includes(a) ? "danger" : r.facilityMatches.includes(a) ? "caution" : "none";
+      const label = { danger: "원재료에 포함", caution: "같은 시설 제조", none: "확인 안 됨" }[s];
+      return `<div class="row"><span>${esc(a)}</span><span class="badge ${s}">${label}</span></div>`;
+    }).join("");
+
+    $("ocrText").textContent = r.ocrText;
+    $("result").style.display = "block";
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  $("againBtn").addEventListener("click", () => {
+    file = null; $("photo").value = "";
+    $("preview").style.display = "none";
+    $("result").style.display = "none";
+    $("analyzeBtn").disabled = true;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // ---------- 화면 전환 ----------
+  function go(name) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === "screen-" + name));
+    document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.go === name));
+    if (name === "menu") loadMenus();
+    if (name === "setting") renderOptions();
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // ---------- 시작 ----------
+  (async () => {
+    const res = await fetch("/api/allergies");
+    choices = (await res.json()).allergies;
+    myAllergies = loadMine() || [];
+    renderChips();
+    go(myAllergies.length ? "menu" : "setting"); // 처음 온 사람은 알레르기 설정부터
+  })();
+</script>
+</body>
+</html>
