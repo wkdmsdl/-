@@ -92,6 +92,8 @@
   .upload strong { font-size: 16px; }
   .upload small { font-size: 13px; color: var(--sub); }
   .upload input { display: none; }
+  .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pick .upload { padding: 24px 10px; }
   #preview { width: 100%; border-radius: var(--radius); margin-top: 12px; display: none; border: 1px solid var(--line); }
 
   .btn {
@@ -180,14 +182,22 @@
   <!-- 2. 성분표 촬영 → 분석 결과 -->
   <section class="screen" id="screen-scan">
     <h2>성분표 촬영</h2>
-    <p class="desc">포장지 뒷면의 원재료·알레르기 표시 부분을 밝은 곳에서 글씨가 잘 보이게 찍어 주세요.</p>
+    <p class="desc">포장지 전체 말고 <b>원재료·알레르기 표시 부분만 화면에 꽉 차게</b> 가까이 찍어 주세요. 밝은 곳에서, 흔들리지 않게 찍으면 더 정확해요.</p>
 
-    <label class="upload" id="uploadBox">
-      <span class="icon">📷</span>
-      <strong>사진 찍기 / 앨범에서 고르기</strong>
-      <small>JPG, PNG · 최대 15MB</small>
-      <input type="file" id="photo" accept="image/*" capture="environment">
-    </label>
+    <div class="pick">
+      <label class="upload">
+        <span class="icon">📷</span>
+        <strong>사진 찍기</strong>
+        <small>카메라 열기</small>
+        <input type="file" id="photoCamera" accept="image/*" capture="environment">
+      </label>
+      <label class="upload">
+        <span class="icon">🖼️</span>
+        <strong>앨범에서 고르기</strong>
+        <small>JPG, PNG · 최대 15MB</small>
+        <input type="file" id="photoAlbum" accept="image/*">
+      </label>
+    </div>
     <img id="preview" alt="선택한 성분표 사진">
 
     <button class="btn" id="analyzeBtn" disabled>분석하기</button>
@@ -327,15 +337,22 @@
   // ---------- 성분표 촬영 ----------
   let file = null;
 
-  $("photo").addEventListener("change", e => {
+  ["photoCamera", "photoAlbum"].forEach(id => $(id).addEventListener("change", e => {
     file = e.target.files[0] || null;
     if (!file) return;
+    if (/heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name)) {
+      file = null;
+      $("error").textContent = "HEIC 사진은 분석할 수 없어요. 아이폰은 설정 → 카메라 → 포맷 → '높은 호환성'으로 바꾸거나, 카메라로 바로 찍어 주세요.";
+      $("error").style.display = "block";
+      return;
+    }
     $("preview").src = URL.createObjectURL(file);
     $("preview").style.display = "block";
     $("analyzeBtn").disabled = false;
     $("result").style.display = "none";
     $("error").style.display = "none";
-  });
+    e.target.value = ""; // 같은 사진을 다시 골라도 동작하도록
+  }));
 
   $("analyzeBtn").addEventListener("click", async () => {
     if (!file) return;
@@ -382,7 +399,7 @@
   }
 
   $("againBtn").addEventListener("click", () => {
-    file = null; $("photo").value = "";
+    file = null;
     $("preview").style.display = "none";
     $("result").style.display = "none";
     $("analyzeBtn").disabled = true;
