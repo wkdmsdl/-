@@ -16,6 +16,10 @@ DECL_SPAN = 80
 CLUSTER_SPAN = 150
 CLUSTER_MIN = 6
 
+# OCR 인식 신뢰도가 이 값보다 낮으면 '발견 안 됨' 대신 '확인 필요'로 판정
+# 처음 값이라 여러 사진의 ocr_confidence를 보고 조정하세요
+LOW_CONFIDENCE = 0.60
+
 # OCR이 자주 틀리는 글자 (사진을 돌려 보며 계속 추가)
 OCR_FIXES = {
     "메민": "메밀",
@@ -82,7 +86,11 @@ def _classify(pos: int, cross_wins, decl_wins) -> Level:
     return Level.INGREDIENT
 
 
-def analyze_label(lines: list[str], user_allergies: list[str]) -> Analysis:
+def analyze_label(
+    lines: list[str],
+    user_allergies: list[str],
+    ocr_confidence: float | None = None,
+) -> Analysis:
     text = re.sub(r"\s+", " ", " ".join(lines)).strip()
     for wrong, right in OCR_FIXES.items():
         text = text.replace(wrong, right)
@@ -154,6 +162,11 @@ def analyze_label(lines: list[str], user_allergies: list[str]) -> Analysis:
     if not user_set:
         return Analysis(Verdict.INFO,
                         "알레르기 설정이 없어 발견된 알레르기 유발물질만 보여드려요.", findings)
+    if ocr_confidence is not None and ocr_confidence < LOW_CONFIDENCE:
+        return Analysis(Verdict.NEEDS_REVIEW,
+                        "설정하신 알레르기 성분은 발견되지 않았지만, 글자 인식 상태가 좋지 않아 "
+                        "놓친 부분이 있을 수 있어요. 더 선명하게 다시 촬영하거나 포장지를 직접 확인해 주세요.",
+                        findings)
     return Analysis(Verdict.NOT_DETECTED,
                     "인식된 범위에서는 설정하신 알레르기 성분이 발견되지 않았어요. "
                     "인식이 완벽하지 않을 수 있으니 포장지의 표시를 직접 한 번 더 확인해 주세요.",

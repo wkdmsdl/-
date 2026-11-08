@@ -31,3 +31,17 @@ def test_garbled_cross_contact_list_is_caution():
 def test_custom_allergen_in_ingredients_is_danger():
     lines = ["원재료명: 돼지고기, 양파, 마늘"]
     assert analyze_label(lines, ["마늘"]).verdict == Verdict.DANGER
+
+    def test_low_confidence_needs_review():
+    lines = ["알레르기 유발물질: 메밀 함유"]
+    assert analyze_label(lines, ["밀"], 0.40).verdict == Verdict.NEEDS_REVIEW
+
+
+def test_high_confidence_not_detected():
+    lines = ["알레르기 유발물질: 메밀 함유"]
+    assert analyze_label(lines, ["밀"], 0.90).verdict == Verdict.NOT_DETECTED
+
+
+def test_danger_overrides_low_confidence():
+    lines = ["알레르기 유발물질: 우유, 대두 함유"]
+    assert analyze_label(lines, ["우유"], 0.30).verdict == Verdict.DANGER

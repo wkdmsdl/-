@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import JSONResponse
 
 from .analyzer import analyze_label
-from .ocr import InvalidImageError, OCRError, decode_image, extract_lines
+from .ocr import InvalidImageError, OCRError, decode_image, extract
 from .schemas import AnalyzeResponse, ErrorInfo
 
 app = FastAPI(title="Allergy Label API")
@@ -34,19 +34,20 @@ async def analyze(
         return error_response(400, "INVALID_IMAGE", "이미지를 읽을 수 없습니다.")
 
     try:
-        lines = extract_lines(img)
+        ocr = extract(img)
     except OCRError:
         return error_response(500, "OCR_FAILED", "글자 인식 중 오류가 발생했습니다. 다시 촬영해 주세요.")
-    if not lines:
+    if not ocr.lines:
         return error_response(422, "EMPTY_RESULT", "글자를 찾지 못했습니다. 원재료표가 잘 보이게 다시 촬영해 주세요.")
 
     user_allergies = [a.strip() for a in allergies.split(",") if a.strip()]
-    result = analyze_label(lines, user_allergies)
+    result = analyze_label(ocr.lines, user_allergies, ocr.confidence)
 
     return AnalyzeResponse(
         success=True,
         verdict=result.verdict,
         message=result.message,
+        ocr_confidence=ocr.confidence,
         findings=result.findings,
-        ocr_text="\n".join(lines),
+        ocr_text="\n".join(ocr.lines),
     )
